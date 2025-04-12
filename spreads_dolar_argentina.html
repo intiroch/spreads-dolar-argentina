@@ -1,0 +1,85 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Spreads del Dólar - Argentina</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #f4f4f4; padding: 20px; }
+        table { border-collapse: collapse; width: 100%; background: white; }
+        th, td { padding: 12px; border: 1px solid #ddd; text-align: center; }
+        th { background-color: #4CAF50; color: white; }
+        caption { font-size: 1.5em; margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+    <h1>Spreads en tiempo real - Cotizaciones del Dólar</h1>
+    <table>
+        <caption>Cotizaciones</caption>
+        <thead>
+            <tr>
+                <th>Tipo</th>
+                <th>Compra</th>
+                <th>Venta</th>
+            </tr>
+        </thead>
+        <tbody id="rates-table">
+        </tbody>
+    </table>
+    <h2>Spreads Relativos (vs Oficial)</h2>
+    <ul id="spreads"></ul>
+
+    <script>
+        async function fetchRates() {
+            const dolarApiUrl = 'https://dolarapi.com/v1/dolares';
+            const criptoYaUrl = 'https://criptoya.com/api/dolar/calaverita/ars/0.1';
+
+            try {
+                const [dolarRes, criptoRes] = await Promise.all([
+                    fetch(dolarApiUrl),
+                    fetch(criptoYaUrl)
+                ]);
+
+                const dolarData = await dolarRes.json();
+                const criptoData = await criptoRes.json();
+
+                const filtered = {
+                    "oficial": dolarData.find(d => d.nombre === "oficial"),
+                    "blue": dolarData.find(d => d.nombre === "blue"),
+                    "mep": dolarData.find(d => d.nombre === "mep"),
+                    "ccl": dolarData.find(d => d.nombre === "ccl"),
+                    "cripto": { compra: criptoData.totalBid, venta: criptoData.totalAsk }
+                };
+
+                const table = document.getElementById("rates-table");
+                table.innerHTML = "";
+                for (let key in filtered) {
+                    const row = `<tr>
+                        <td>${key.toUpperCase()}</td>
+                        <td>${filtered[key].compra.toFixed(2)}</td>
+                        <td>${filtered[key].venta.toFixed(2)}</td>
+                    </tr>`;
+                    table.innerHTML += row;
+                }
+
+                const base = filtered.oficial.venta;
+                const spreadsList = document.getElementById("spreads");
+                spreadsList.innerHTML = "";
+
+                for (let key in filtered) {
+                    if (key !== "oficial") {
+                        const spread = ((filtered[key].venta - base) / base) * 100;
+                        spreadsList.innerHTML += `<li>${key.toUpperCase()}: ${spread.toFixed(2)}%</li>`;
+                    }
+                }
+
+            } catch (err) {
+                console.error("Error fetching data", err);
+            }
+        }
+
+        fetchRates();
+        setInterval(fetchRates, 60000);
+    </script>
+</body>
+</html>
