@@ -5,36 +5,79 @@
   <meta charset="UTF-8" />
   <title>ENRULATOR - Simulador de Rulos Cambiarios</title>
   <style>
-    body { font-family: Arial, sans-serif; background: #f7f7f7; padding: 20px; color: #222; }
-    h1, h2 { color: #333; text-align: center; }
-    table { width: 100%; border-collapse: collapse; margin-bottom: 30px; background: white; }
-    th, td { padding: 10px; border: 1px solid #ccc; text-align: center; }
-    th { background: #4CAF50; color: white; }
-    input, select, button { padding: 8px; font-size: 1em; margin: 5px; }
-    .green { color: green; }
-    .red { color: red; }
-    .yellow { color: goldenrod; }
-    .banner { text-align: center; margin-bottom: 30px; }
-    .banner img { max-width: 100%; border-radius: 10px; box-shadow: 0 0 20px rgba(0,0,0,0.3); }
+    body {
+      font-family: Arial, sans-serif;
+      background: #121212;
+      color: #eee;
+      padding: 20px;
+    }
+    h1, h2 {
+      text-align: center;
+      color: #00eaff;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 30px;
+      background: #1e1e1e;
+    }
+    th, td {
+      padding: 10px;
+      border: 1px solid #333;
+      text-align: center;
+    }
+    th {
+      background: #222;
+      color: #00eaff;
+    }
+    input, select, button {
+      padding: 8px;
+      font-size: 1em;
+      margin: 5px;
+      background: #222;
+      color: #eee;
+      border: 1px solid #444;
+    }
+    button {
+      background-color: #00eaff;
+      color: #000;
+      font-weight: bold;
+    }
+    .green { color: #00ff00; }
+    .red { color: #ff5555; }
+    .yellow { color: #ffaa00; }
+    .banner {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    .banner img {
+      width: 280px;
+      max-width: 90%;
+      height: auto;
+      margin: 0 auto;
+      display: block;
+      border-radius: 10px;
+      box-shadow: 0 0 20px rgba(0,0,0,0.6);
+    }
   </style>
 </head>
 <body>
   <h1>ENRULATOR</h1>
   <div class="banner">
-    <img src="enrulator.png" alt="ENRULATOR" />
+    <img src="enrulator.png" alt="ENRULATOR" style="width: 280px; max-width: 90%; height: auto; margin: 0 auto; display: block; border-radius: 10px; box-shadow: 0 0 20px rgba(0,0,0,0.6);" />
   </div>
 
   <div id="error" style="color: red; text-align:center;"></div>
 
   <h2>Cotizaciones</h2>
   <table id="cotizaciones">
-    <thead><tr><th>Tipo</th><th>Valor</th></tr></thead>
+    <thead><tr><th>Tipo</th><th>Compra</th><th>Venta</th></tr></thead>
     <tbody></tbody>
   </table>
 
-  <h2>Desarbitrajes</h2>
+  <h2>Rulos y Desarbitrajes</h2>
   <table id="spreads">
-    <thead><tr><th>Relación</th><th>Spread</th><th>Ganancia por u$s1000</th></tr></thead>
+    <thead><tr><th>Rulo</th><th>Spread</th><th>Ganancia u$s1000</th></tr></thead>
     <tbody></tbody>
   </table>
 
@@ -42,12 +85,7 @@
   <label>Monto en USD: <input type="number" id="monto" value="1000" /></label>
   <label>Repeticiones: <input type="number" id="vueltas" value="1" /></label>
   <label>Rulo:
-    <select id="rulo">
-      <option value="blue_vs_oficial">Oficial → Blue</option>
-      <option value="mep_vs_oficial">Oficial → MEP</option>
-      <option value="ccl_vs_mep">MEP → CCL</option>
-      <option value="cripto_vs_blue">Cripto → Blue</option>
-    </select>
+    <select id="rulo"></select>
   </label>
   <button onclick="simular()">Simular</button>
 
@@ -56,6 +94,15 @@
   <script>
     let cotizaciones = {};
     let spreads = {};
+    const rulos = [
+      { key: "oficial_blue", label: "Oficial → Blue" },
+      { key: "oficial_mep", label: "Oficial → MEP" },
+      { key: "mep_ccl", label: "MEP → CCL" },
+      { key: "mep_blue", label: "MEP → Blue" },
+      { key: "oficial_ccl", label: "Rolo Puente" },
+      { key: "cripto_blue", label: "Cripto → Blue" },
+      { key: "oficial_cripto", label: "Oficial → Cripto" },
+    ];
 
     async function fetchData() {
       try {
@@ -63,36 +110,44 @@
         const data = await res.json();
 
         cotizaciones = data.cotizaciones || {};
-        spreads = data.desarbitrajes || {};
         const errores = data.errores || {};
 
         const cotBody = document.querySelector("#cotizaciones tbody");
         const sprBody = document.querySelector("#spreads tbody");
+        const selectRulo = document.getElementById("rulo");
 
         cotBody.innerHTML = "";
-        for (const key in {oficial:'', blue:'', mep:'', ccl:'', cripto:''}) {
-          const valor = cotizaciones[key];
-          cotBody.innerHTML += `<tr><td>${key.toUpperCase()}</td><td>${valor ?? "Sin datos"}</td></tr>`;
+        for (const key of ["oficial", "blue", "mep", "ccl", "cripto"]) {
+          const row = cotizaciones[key];
+          cotBody.innerHTML += `<tr>
+            <td>${key.toUpperCase()}</td>
+            <td>${row?.compra ?? "—"}</td>
+            <td>${row?.venta ?? "—"}</td>
+          </tr>`;
         }
 
         sprBody.innerHTML = "";
-        const combinaciones = {
-          blue_vs_oficial: ["blue", "oficial"],
-          mep_vs_oficial: ["mep", "oficial"],
-          ccl_vs_mep: ["ccl", "mep"],
-          cripto_vs_blue: ["cripto", "blue"]
-        };
+        selectRulo.innerHTML = "";
 
-        for (const key in combinaciones) {
-          const [venta, compra] = combinaciones[key];
-          const spread = spreads[key] ?? "No disponible";
-          const ganancia = (cotizaciones[venta] && cotizaciones[compra]) ?
-            `$${((cotizaciones[venta] - cotizaciones[compra]) * 1000).toFixed(2)}` : "—";
+        rulos.forEach(rulo => {
+          const [origen, destino] = rulo.key.split("_");
+          const compra = cotizaciones[origen]?.venta;
+          const venta = cotizaciones[destino]?.compra;
+
+          let spread = "—";
+          let ganancia = "—";
           let clase = "";
-          const num = parseFloat(spread);
-          if (!isNaN(num)) clase = num > 10 ? "green" : num > 1 ? "yellow" : "red";
-          sprBody.innerHTML += `<tr><td>${key.replace(/_/g, ' ').toUpperCase()}</td><td class="${clase}">${spread}</td><td>${ganancia}</td></tr>`;
-        }
+
+          if (compra && venta) {
+            const spreadNum = ((venta - compra) / compra) * 100;
+            spread = spreadNum.toFixed(2) + "%";
+            ganancia = "$" + ((venta - compra) * 1000).toFixed(2);
+            clase = spreadNum > 10 ? "green" : spreadNum > 1 ? "yellow" : "red";
+          }
+
+          sprBody.innerHTML += `<tr><td>${rulo.label}</td><td class="${clase}">${spread}</td><td>${ganancia}</td></tr>`;
+          selectRulo.innerHTML += `<option value="${rulo.key}">${rulo.label}</option>`;
+        });
 
         if (Object.keys(errores).length > 0) {
           document.getElementById("error").textContent = "Algunas fuentes no respondieron correctamente.";
@@ -105,25 +160,20 @@
     function simular() {
       const monto = parseFloat(document.getElementById("monto").value);
       const vueltas = parseInt(document.getElementById("vueltas").value);
-      const rulo = document.getElementById("rulo").value;
+      const ruloKey = document.getElementById("rulo").value;
+      const [origen, destino] = ruloKey.split("_");
 
-      const map = {
-        blue_vs_oficial: ["blue", "oficial"],
-        mep_vs_oficial: ["mep", "oficial"],
-        ccl_vs_mep: ["ccl", "mep"],
-        cripto_vs_blue: ["cripto", "blue"]
-      };
+      const compra = cotizaciones[origen]?.venta;
+      const venta = cotizaciones[destino]?.compra;
 
-      const [venta, compra] = map[rulo] || [];
-
-      if (!(cotizaciones[venta] && cotizaciones[compra])) {
-        document.getElementById("resultado").textContent = "No hay datos suficientes para simular ese rulo.";
+      if (!(compra && venta)) {
+        document.getElementById("resultado").textContent = "Datos insuficientes para este rulo.";
         return;
       }
 
-      const ganancia = (cotizaciones[venta] - cotizaciones[compra]) * monto * vueltas;
-      document.getElementById("resultado").textContent = 
-        `Si hacés ${vueltas} vez/veces el rulo ${venta.toUpperCase()} → ${compra.toUpperCase()} con u$s${monto}, ganás $${ganancia.toFixed(2)} ARS.`;
+      const ganancia = (venta - compra) * monto * vueltas;
+      document.getElementById("resultado").textContent =
+        `Si hacés ${vueltas} vez/veces el rulo ${origen.toUpperCase()} → ${destino.toUpperCase()} con u$s${monto}, ganás $${ganancia.toFixed(2)} ARS.`;
     }
 
     fetchData();
