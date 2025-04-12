@@ -2,86 +2,126 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <title>Desarbitrajes del Dólar</title>
-    <style>
-        body { font-family: Arial, sans-serif; background: #f7f7f7; padding: 20px; }
-        h1 { color: #333; }
-        .section { margin-bottom: 20px; }
-        table { width: 100%; border-collapse: collapse; background: white; }
-        th, td { padding: 10px; border: 1px solid #ccc; text-align: center; }
-        th { background: #4CAF50; color: white; }
-    </style>
+  <meta charset="UTF-8" />
+  <title>Desarbitrajes del Dólar + Simulador</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f7f7f7; padding: 20px; color: #222; }
+    h1, h2 { color: #333; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 30px; background: white; }
+    th, td { padding: 10px; border: 1px solid #ccc; text-align: center; }
+    th { background: #4CAF50; color: white; }
+    input, select, button { padding: 8px; font-size: 1em; margin: 5px; }
+    .green { color: green; }
+    .red { color: red; }
+    .yellow { color: goldenrod; }
+  </style>
 </head>
 <body>
-    <h1>Desarbitrajes del Dólar</h1>
-    <div id="error" style="color: red;"></div>
+  <h1>Desarbitrajes del Dólar</h1>
+  <div id="error" style="color: red;"></div>
 
-    <div class="section">
-        <h2>Cotizaciones</h2>
-        <table id="cotizaciones">
-            <thead>
-                <tr>
-                    <th>Tipo</th>
-                    <th>Valor</th>
-                </tr>
-            </thead>
-            <tbody></tbody>
-        </table>
-    </div>
+  <h2>Cotizaciones</h2>
+  <table id="cotizaciones">
+    <thead><tr><th>Tipo</th><th>Valor</th></tr></thead>
+    <tbody></tbody>
+  </table>
 
-    <div class="section">
-        <h2>Desarbitrajes</h2>
-        <table id="spreads">
-            <thead>
-                <tr>
-                    <th>Relación</th>
-                    <th>Spread</th>
-                </tr>
-            </thead>
-            <tbody></tbody>
-        </table>
-    </div>
+  <h2>Desarbitrajes</h2>
+  <table id="spreads">
+    <thead><tr><th>Relación</th><th>Spread</th><th>Ganancia por u$s1000</th></tr></thead>
+    <tbody></tbody>
+  </table>
 
-    <script>
-        async function fetchData() {
-            const url = "https://spreads-dolar-argentina.onrender.com";
-            try {
-                const res = await fetch(url);
-                const data = await res.json();
+  <h2>Simulador de Rulo</h2>
+  <label>Monto en USD: <input type="number" id="monto" value="1000" /></label>
+  <label>Repeticiones: <input type="number" id="vueltas" value="1" /></label>
+  <label>Rulo:
+    <select id="rulo">
+      <option value="blue_vs_oficial">Oficial → Blue</option>
+      <option value="mep_vs_oficial">Oficial → MEP</option>
+      <option value="ccl_vs_mep">MEP → CCL</option>
+      <option value="cripto_vs_blue">Cripto → Blue</option>
+    </select>
+  </label>
+  <button onclick="simular()">Simular</button>
 
-                const cotizaciones = data.cotizaciones || {};
-                const spreads = data.desarbitrajes || {};
-                const errores = data.errores || {};
+  <div id="resultado" style="margin-top: 15px; font-weight: bold;"></div>
 
-                const cotBody = document.querySelector("#cotizaciones tbody");
-                const sprBody = document.querySelector("#spreads tbody");
+  <script>
+    let cotizaciones = {};
+    let spreads = {};
 
-                cotBody.innerHTML = "";
-                for (const key in {oficial: '', blue: '', mep: '', ccl: '', cripto: ''}) {
-                    const valor = cotizaciones[key];
-                    const display = valor !== undefined ? valor : "Sin datos";
-                    cotBody.innerHTML += `<tr><td>${key.toUpperCase()}</td><td>${display}</td></tr>`;
-                }
+    async function fetchData() {
+      try {
+        const res = await fetch("https://spreads-dolar-argentina.onrender.com");
+        const data = await res.json();
 
-                sprBody.innerHTML = "";
-                for (const key in {blue_vs_oficial:'', mep_vs_oficial:'', ccl_vs_mep:'', cripto_vs_blue:''}) {
-                    const valor = spreads[key];
-                    const display = valor !== undefined ? valor : "No disponible";
-                    sprBody.innerHTML += `<tr><td>${key.replace(/_/g, ' ').toUpperCase()}</td><td>${display}</td></tr>`;
-                }
+        cotizaciones = data.cotizaciones || {};
+        spreads = data.desarbitrajes || {};
+        const errores = data.errores || {};
 
-                if (Object.keys(errores).length > 0) {
-                    document.getElementById("error").textContent = "Atención: algunas fuentes no respondieron correctamente.";
-                }
+        const cotBody = document.querySelector("#cotizaciones tbody");
+        const sprBody = document.querySelector("#spreads tbody");
 
-            } catch (error) {
-                document.getElementById("error").textContent = "Error al conectar con el servidor.";
-            }
+        cotBody.innerHTML = "";
+        for (const key in {oficial:'', blue:'', mep:'', ccl:'', cripto:''}) {
+          const valor = cotizaciones[key];
+          cotBody.innerHTML += `<tr><td>${key.toUpperCase()}</td><td>${valor ?? "Sin datos"}</td></tr>`;
         }
 
-        fetchData();
-        setInterval(fetchData, 60000);
-    </script>
+        sprBody.innerHTML = "";
+        const combinaciones = {
+          blue_vs_oficial: ["blue", "oficial"],
+          mep_vs_oficial: ["mep", "oficial"],
+          ccl_vs_mep: ["ccl", "mep"],
+          cripto_vs_blue: ["cripto", "blue"]
+        };
+
+        for (const key in combinaciones) {
+          const [venta, compra] = combinaciones[key];
+          const spread = spreads[key] ?? "No disponible";
+          const ganancia = (cotizaciones[venta] && cotizaciones[compra]) ?
+            `$${((cotizaciones[venta] - cotizaciones[compra]) * 1000).toFixed(2)}` : "—";
+          let clase = "";
+          const num = parseFloat(spread);
+          if (!isNaN(num)) clase = num > 10 ? "green" : num > 1 ? "yellow" : "red";
+          sprBody.innerHTML += `<tr><td>${key.replace(/_/g, ' ').toUpperCase()}</td><td class="${clase}">${spread}</td><td>${ganancia}</td></tr>`;
+        }
+
+        if (Object.keys(errores).length > 0) {
+          document.getElementById("error").textContent = "Algunas fuentes no respondieron correctamente.";
+        }
+      } catch (e) {
+        document.getElementById("error").textContent = "Error al conectar con el backend.";
+      }
+    }
+
+    function simular() {
+      const monto = parseFloat(document.getElementById("monto").value);
+      const vueltas = parseInt(document.getElementById("vueltas").value);
+      const rulo = document.getElementById("rulo").value;
+
+      const map = {
+        blue_vs_oficial: ["blue", "oficial"],
+        mep_vs_oficial: ["mep", "oficial"],
+        ccl_vs_mep: ["ccl", "mep"],
+        cripto_vs_blue: ["cripto", "blue"]
+      };
+
+      const [venta, compra] = map[rulo] || [];
+
+      if (!(cotizaciones[venta] && cotizaciones[compra])) {
+        document.getElementById("resultado").textContent = "No hay datos suficientes para simular ese rulo.";
+        return;
+      }
+
+      const ganancia = (cotizaciones[venta] - cotizaciones[compra]) * monto * vueltas;
+      document.getElementById("resultado").textContent = 
+        `Si hacés ${vueltas} vez/veces el rulo ${venta.toUpperCase()} → ${compra.toUpperCase()} con u$s${monto}, ganás $${ganancia.toFixed(2)} ARS.`;
+    }
+
+    fetchData();
+    setInterval(fetchData, 60000);
+  </script>
 </body>
 </html>
