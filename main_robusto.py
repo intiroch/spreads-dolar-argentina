@@ -17,18 +17,22 @@ def safe_get_json(url):
         res = requests.get(url, timeout=5)
         return res.json()
     except Exception as e:
-        return {"error": str(e)}
+        return {"__error__": str(e)}
 
 @app.get("/")
 def get_dolar_data():
     dolar = safe_get_json("https://dolarapi.com/v1/dolares")
     cripto = safe_get_json("https://criptoya.com/api/dolar/calaverita/ars/0.1")
 
-    if "error" in dolar or "error" in cripto:
-        return {"error": {
-            "dolar": dolar.get("error", "ok"),
-            "cripto": cripto.get("error", "ok")
-        }}
+    # Validamos errores
+    errors = {}
+    if isinstance(dolar, dict) and "__error__" in dolar:
+        errors["dolar"] = dolar["__error__"]
+    if isinstance(cripto, dict) and "__error__" in cripto:
+        errors["cripto"] = cripto["__error__"]
+
+    if errors:
+        return {"error": errors}
 
     try:
         cotizaciones = {
