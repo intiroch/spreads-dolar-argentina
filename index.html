@@ -1,0 +1,87 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Desarbitrajes del Dólar</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #f7f7f7; padding: 20px; }
+        h1 { color: #333; }
+        .section { margin-bottom: 20px; }
+        table { width: 100%; border-collapse: collapse; background: white; }
+        th, td { padding: 10px; border: 1px solid #ccc; text-align: center; }
+        th { background: #4CAF50; color: white; }
+    </style>
+</head>
+<body>
+    <h1>Desarbitrajes del Dólar</h1>
+    <div id="error" style="color: red;"></div>
+
+    <div class="section">
+        <h2>Cotizaciones</h2>
+        <table id="cotizaciones">
+            <thead>
+                <tr>
+                    <th>Tipo</th>
+                    <th>Valor</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+
+    <div class="section">
+        <h2>Desarbitrajes</h2>
+        <table id="spreads">
+            <thead>
+                <tr>
+                    <th>Relación</th>
+                    <th>Spread</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+
+    <script>
+        async function fetchData() {
+            const url = "https://spreads-dolar-argentina.onrender.com";
+            try {
+                const res = await fetch(url);
+                const data = await res.json();
+
+                const cotizaciones = data.cotizaciones || {};
+                const spreads = data.desarbitrajes || {};
+                const errores = data.errores || {};
+
+                const cotBody = document.querySelector("#cotizaciones tbody");
+                const sprBody = document.querySelector("#spreads tbody");
+
+                cotBody.innerHTML = "";
+                for (const key in {oficial: '', blue: '', mep: '', ccl: '', cripto: ''}) {
+                    const valor = cotizaciones[key];
+                    const display = valor !== undefined ? valor : "Sin datos";
+                    cotBody.innerHTML += `<tr><td>${key.toUpperCase()}</td><td>${display}</td></tr>`;
+                }
+
+                sprBody.innerHTML = "";
+                for (const key in {blue_vs_oficial:'', mep_vs_oficial:'', ccl_vs_mep:'', cripto_vs_blue:''}) {
+                    const valor = spreads[key];
+                    const display = valor !== undefined ? valor : "No disponible";
+                    sprBody.innerHTML += `<tr><td>${key.replace(/_/g, ' ').toUpperCase()}</td><td>${display}</td></tr>`;
+                }
+
+                if (Object.keys(errores).length > 0) {
+                    document.getElementById("error").textContent = "Atención: algunas fuentes no respondieron correctamente.";
+                }
+
+            } catch (error) {
+                document.getElementById("error").textContent = "Error al conectar con el servidor.";
+            }
+        }
+
+        fetchData();
+        setInterval(fetchData, 60000);
+    </script>
+</body>
+</html>
